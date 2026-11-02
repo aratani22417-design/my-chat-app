@@ -6,10 +6,10 @@
   <title>AI チャットボット</title>
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 0 10px; }
-    #chat-box { height: 350px; border: 1px solid #ccc; padding: 10px; overflow-y: auto; margin-bottom: 10px; border-radius: 5px; }
-    .message { margin: 8px 0; padding: 8px; border-radius: 4px; }
+    #chat-box { height: 400px; border: 1px solid #ccc; padding: 10px; overflow-y: auto; margin-bottom: 10px; border-radius: 5px; }
+    .message { margin: 8px 0; padding: 8px; border-radius: 4px; line-height: 1.4; }
     .user { background: #e3f2fd; text-align: right; }
-    .bot { background: #f5f5f5; text-align: left; }
+    .bot { background: #f5f5f5; text-align: left; white-space: pre-wrap; }
     .input-area { display: flex; gap: 8px; }
     input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
     button { padding: 8px 16px; background: #0070f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
@@ -30,6 +30,9 @@
       const input = document.getElementById('user-input');
       const sendBtn = document.getElementById('send-btn');
 
+      // 画面を開いている間の会話履歴を保持する配列
+      const conversationHistory = [];
+
       function appendMessage(sender, text) {
         const div = document.createElement('div');
         div.className = `message ${sender}`;
@@ -42,7 +45,10 @@
         const text = input.value.trim();
         if (!text) return;
 
+        // ユーザーの発言を画面に表示し、履歴に追加
         appendMessage('user', text);
+        conversationHistory.push({ role: 'user', parts: [{ text: text }] });
+
         input.value = '';
         sendBtn.disabled = true;
 
@@ -50,17 +56,22 @@
           const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text })
+            body: JSON.stringify({ contents: conversationHistory })
           });
 
           const data = await res.json();
           if (data.reply) {
             appendMessage('bot', data.reply);
+            // AIの返信も履歴に追加（これで文脈が繋がります）
+            conversationHistory.push({ role: 'model', parts: [{ text: data.reply }] });
           } else {
             appendMessage('bot', `エラー: ${data.error || '応答の取得に失敗しました'}`);
+            // エラー時は直前のユーザー発言を履歴から取り除く
+            conversationHistory.pop();
           }
         } catch (err) {
           appendMessage('bot', '通信エラーが発生しました。');
+          conversationHistory.pop();
         } finally {
           sendBtn.disabled = false;
         }
