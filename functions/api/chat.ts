@@ -5,11 +5,11 @@ interface Env {
 export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string }> = async (context) => {
   try {
     const { request, env } = context;
-    const body = await request.json() as { message?: string };
-    const userMessage = body.message;
+    const body = await request.json() as { contents?: any[] };
+    const contents = body.contents;
 
-    if (!userMessage) {
-      return new Response(JSON.stringify({ error: "メッセージが空です。" }), {
+    if (!contents || !Array.isArray(contents) || contents.length === 0) {
+      return new Response(JSON.stringify({ error: "会話データが空です。" }), {
         status: 400,
         headers: { "Content-Type": "application/json" }
       });
@@ -23,19 +23,12 @@ export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string }> = async (c
       });
     }
 
-    // 利用可能なモデル名（gemini-2.5-flash 等）を指定
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: userMessage }]
-          }
-        ]
-      })
+      body: JSON.stringify({ contents: contents })
     });
 
     const data = await geminiResponse.json() as any;
