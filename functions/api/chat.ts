@@ -24,7 +24,7 @@ export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string }> = async (c
     }
 
     // 利用可能なモデル名（gemini-2.5-flash 等）を指定
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${apiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
