@@ -2,50 +2,60 @@ interface Env {
   GEMINI_API_KEY: string;
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export const onRequestPost: PagesFunction<{ GEMINI_API_KEY: string }> = async (context) => {
   try {
-    const apiKey = context.env.GEMINI_API_KEY;
+    const { request, env } = context;
+    const body = await request.json() as { message?: string };
+    const userMessage = body.message;
+
+    if (!userMessage) {
+      return new Response(JSON.stringify({ error: "メッセージが空です。" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "APIキーが設定されていません。" }), {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY が設定されていません。" }), {
         status: 500,
         headers: { "Content-Type": "application/json" }
       });
     }
 
-    const { message } = await context.request.json<{ message: string }>();
+    // 利用可能なモデル名（gemini-2.5-flash 等）を指定
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    // Google AI Studio (Gemini 2.5 API) へのリクエスト送信
-    const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-    const apiResponse = await fetch(googleApiUrl, {
+    const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [
           {
-            parts: [{ text: message }]
+            parts: [{ text: userMessage }]
           }
         ]
       })
     });
 
-    const data: any = await apiResponse.json();
+    const data = await geminiResponse.json() as any;
 
-    if (!apiResponse.ok) {
-      return new Response(JSON.stringify({ error: data.error?.message || "Gemini APIエラー" }), {
-        status: apiResponse.status,
+    if (!geminiResponse.ok) {
+      const errMsg = data?.error?.message || "Gemini APIでエラーが発生しました。";
+      return new Response(JSON.stringify({ error: errMsg }), {
+        status: geminiResponse.status,
         headers: { "Content-Type": "application/json" }
       });
     }
 
-    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "返答を得られませんでした。";
+    const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "応答を得られませんでした。";
 
     return new Response(JSON.stringify({ reply: replyText }), {
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message || "サーバーエラーが発生しました。" }), {
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message || "サーバーエラーが発生しました。" }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
