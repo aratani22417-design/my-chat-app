@@ -3,29 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI チャットアシスタント</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
-  <!-- Markdownレンダリング用ライブラリ -->
+  <title>AI Assistant</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <!-- Markdownレンダリング用 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
-      --bg-color: #f8fafc;
-      --card-bg: #ffffff;
-      --text-main: #0f172a;
-      --text-sub: #64748b;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --user-msg: #dbeafe;
-      --bot-msg: #f1f5f9;
-      --border: #e2e8f0;
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f2744 100%);
+      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --card-bg: #1e293b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      
+      --accent-cyan: #06b6d4;
+      --accent-blue: #3b82f6;
+      --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+      
+      --user-bubble: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      --bot-bubble: rgba(255, 255, 255, 0.06);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-main);
+      background: var(--bg-gradient);
+      color: var(--text-primary);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -33,141 +37,219 @@
       padding: 16px;
     }
 
+    /* メインコンテナ（グラスモーフィズム調） */
     .chat-container {
       width: 100%;
-      max-width: 768px;
-      height: 85vh;
-      background: var(--card-bg);
-      border-radius: 16px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
-      border: 1px solid var(--border);
+      max-width: 800px;
+      height: 88vh;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 24px;
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
 
+    /* ヘッダー */
     header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--glass-border);
       display: flex;
       align-items: center;
       gap: 12px;
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .header-icon {
+      width: 38px;
+      height: 38px;
+      background: var(--accent-gradient);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
     }
 
     header h1 {
-      font-size: 1.125rem;
+      font-size: 1.15rem;
       font-weight: 600;
+      letter-spacing: 0.5px;
     }
 
+    header .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      margin-left: auto;
+    }
+
+    /* チャット表示エリア */
     #chat-box {
       flex: 1;
-      padding: 20px;
+      padding: 24px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
+      scroll-behavior: smooth;
     }
 
+    /* カスタムスクロールバー */
+    #chat-box::-webkit-scrollbar {
+      width: 6px;
+    }
+    #chat-box::-webkit-scrollbar-thumb {
+      background: var(--glass-border);
+      border-radius: 3px;
+    }
+
+    /* メッセージの共通スタイル */
     .message {
-      max-width: 80%;
-      padding: 12px 16px;
-      border-radius: 12px;
+      max-width: 82%;
+      padding: 14px 18px;
+      border-radius: 18px;
       line-height: 1.6;
       font-size: 0.95rem;
       word-break: break-word;
+      animation: fadeIn 0.25s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .message.user {
       align-self: flex-end;
-      background-color: var(--primary);
+      background: var(--user-bubble);
       color: #ffffff;
-      border-bottom-right-radius: 2px;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
     }
 
     .message.bot {
       align-self: flex-start;
-      background-color: var(--bot-msg);
-      color: var(--text-main);
-      border-bottom-left-radius: 2px;
+      background: var(--bot-bubble);
+      border: 1px solid var(--glass-border);
+      color: var(--text-primary);
+      border-bottom-left-radius: 4px;
     }
 
-    /* Markdownスタイルの微調整 */
-    .message.bot p { margin-bottom: 0.5em; }
+    /* Markdown要素の装飾 */
+    .message.bot p { margin-bottom: 0.6em; }
     .message.bot p:last-child { margin-bottom: 0; }
     .message.bot pre {
-      background: #1e293b;
-      color: #f8fafc;
-      padding: 10px;
-      border-radius: 6px;
+      background: #090d16;
+      border: 1px solid var(--glass-border);
+      color: #38bdf8;
+      padding: 12px;
+      border-radius: 8px;
       overflow-x: auto;
-      margin: 8px 0;
+      margin: 10px 0;
+      font-family: 'Fira Code', Consolas, monospace;
+      font-size: 0.88rem;
     }
     .message.bot code {
-      font-family: monospace;
-      background: rgba(0,0,0,0.05);
-      padding: 2px 4px;
+      font-family: 'Fira Code', Consolas, monospace;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 6px;
       border-radius: 4px;
+      color: #38bdf8;
     }
 
+    /* 入力フォームエリア */
     .input-container {
-      padding: 16px;
-      border-top: 1px solid var(--border);
-      background: #ffffff;
+      padding: 16px 24px 20px;
+      background: rgba(15, 23, 42, 0.9);
+      border-top: 1px solid var(--glass-border);
     }
 
     .input-area {
       display: flex;
-      gap: 8px;
+      gap: 12px;
+      position: relative;
     }
 
     input {
       flex: 1;
-      padding: 12px 16px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      color: #ffffff;
       font-size: 0.95rem;
       outline: none;
-      transition: border-color 0.2s;
+      transition: all 0.2s ease;
+    }
+
+    input::placeholder {
+      color: var(--text-secondary);
     }
 
     input:focus {
-      border-color: var(--primary);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+      background: rgba(255, 255, 255, 0.08);
     }
 
     button {
-      padding: 12px 20px;
-      background: var(--primary);
+      padding: 0 24px;
+      background: var(--accent-gradient);
       color: white;
       border: none;
-      border-radius: 8px;
-      font-weight: 500;
+      border-radius: 14px;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    button:hover { background: var(--primary-hover); }
-    button:disabled { background: var(--text-sub); cursor: not-allowed; }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
 
     /* タイピングインジケーター */
     .typing-indicator {
       display: inline-flex;
-      gap: 4px;
+      gap: 6px;
       align-items: center;
+      padding: 4px 0;
     }
     .dot {
-      width: 6px;
-      height: 6px;
-      background: var(--text-sub);
+      width: 7px;
+      height: 7px;
+      background: var(--accent-cyan);
       border-radius: 50%;
-      animation: blink 1.4s infinite ease-in-out both;
+      animation: pulse 1.2s infinite ease-in-out both;
     }
     .dot:nth-child(1) { animation-delay: -0.32s; }
     .dot:nth-child(2) { animation-delay: -0.16s; }
 
-    @keyframes blink {
-      0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
-      40% { opacity: 1; transform: scale(1); }
+    @keyframes pulse {
+      0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+      40% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 8px var(--accent-cyan); }
     }
   </style>
 </head>
@@ -175,8 +257,9 @@
 
   <div class="chat-container">
     <header>
-      <span style="font-size: 1.5rem;">🤖</span>
-      <h1>AI チャットアシスタント</h1>
+      <div class="header-icon">⚡</div>
+      <h1>AI Assistant</h1>
+      <div class="status-dot" title="Online"></div>
     </header>
 
     <div id="chat-box"></div>
