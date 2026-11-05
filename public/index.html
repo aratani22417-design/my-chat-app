@@ -3,11 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI & お散歩ナビゲーター</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚶‍♂️</text></svg>">
-  
-  <!-- Markdownレンダリング用 -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <title>お散歩ルートプランナー</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
   
   <!-- Map (Leaflet.js) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -27,9 +24,6 @@
       --accent-green: #10b981;
       --accent-amber: #f59e0b;
       --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
-      
-      --user-bubble: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-      --bot-bubble: rgba(255, 255, 255, 0.06);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,9 +41,9 @@
 
     .app-container {
       width: 100%;
-      max-width: 950px;
-      height: 92vh;
-      background: rgba(15, 23, 42, 0.85);
+      max-width: 1000px;
+      height: 94vh;
+      background: rgba(15, 23, 42, 0.88);
       backdrop-filter: blur(16px);
       border-radius: 20px;
       border: 1px solid var(--glass-border);
@@ -59,577 +53,489 @@
       overflow: hidden;
     }
 
-    /* メインヘッダー＆タブ */
     header {
-      padding: 12px 20px 0;
+      padding: 14px 20px;
       border-bottom: 1px solid var(--glass-border);
       background: rgba(255, 255, 255, 0.02);
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .header-title {
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
     .header-icon {
-      width: 34px;
-      height: 34px;
+      width: 36px;
+      height: 36px;
       background: var(--accent-gradient);
-      border-radius: 8px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.1rem;
+      font-size: 1.2rem;
     }
 
-    .tab-bar {
-      display: flex;
-      gap: 8px;
-    }
-
-    .tab-btn {
-      padding: 10px 20px;
-      background: transparent;
-      border: none;
-      border-bottom: 3px solid transparent;
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .tab-btn.active {
-      color: var(--accent-cyan);
-      border-bottom-color: var(--accent-cyan);
-    }
-
-    /* コンテンツ表示枠 */
-    .tab-content {
-      flex: 1;
-      display: none;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .tab-content.active {
-      display: flex;
-    }
-
-    /* ------------------------------
-       1. 通常チャットスタイル
-    ------------------------------ */
-    #chat-box {
-      flex: 1;
-      padding: 20px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .message {
-      max-width: 82%;
-      padding: 12px 16px;
-      border-radius: 16px;
-      line-height: 1.6;
-      font-size: 0.92rem;
-      word-break: break-word;
-      animation: fadeIn 0.2s ease-out;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .message.user {
-      align-self: flex-end;
-      background: var(--user-bubble);
-      color: #fff;
-      border-bottom-right-radius: 2px;
-    }
-
-    .message.bot {
-      align-self: flex-start;
-      background: var(--bot-bubble);
-      border: 1px solid var(--glass-border);
-      color: var(--text-primary);
-      border-bottom-left-radius: 2px;
-    }
-
-    .message.bot p { margin-bottom: 0.5em; }
-    .message.bot p:last-child { margin-bottom: 0; }
-    .message.bot pre { background: #090d16; padding: 10px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
-    .message.bot code { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; }
-
-    .input-container {
-      padding: 14px 20px;
-      background: rgba(15, 23, 42, 0.95);
-      border-top: 1px solid var(--glass-border);
-    }
-
-    .input-area { display: flex; gap: 10px; }
-    input[type="text"], select {
-      padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid var(--glass-border);
-      border-radius: 10px;
-      color: #fff;
-      font-size: 0.9rem;
-      outline: none;
-    }
-    input[type="text"]:focus { border-color: var(--accent-cyan); }
-    select option { background: #1e293b; color: #fff; }
-
-    .primary-btn {
-      padding: 0 20px;
-      background: var(--accent-gradient);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s;
-    }
-    .primary-btn:hover { opacity: 0.9; }
-    .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* ------------------------------
-       2. お散歩機能スタイル
-    ------------------------------ */
-    .walk-layout {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    /* マップ表示エリア（デフォ表示） */
-    #map {
-      height: 280px;
-      width: 100%;
-      background: #090d16;
-      border-bottom: 1px solid var(--glass-border);
-    }
-
+    /* フォーム領域 */
     .walk-control-panel {
       padding: 14px 20px;
-      background: rgba(0, 0, 0, 0.2);
+      background: rgba(0, 0, 0, 0.25);
       border-bottom: 1px solid var(--glass-border);
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       font-size: 0.85rem;
     }
 
     .setting-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 12px;
       align-items: center;
     }
 
-    .mode-selector {
+    .form-group {
       display: flex;
-      gap: 4px;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 3px;
-      border-radius: 8px;
+      align-items: center;
+      gap: 6px;
     }
 
-    .mode-btn {
-      padding: 5px 12px;
-      border-radius: 6px;
-      border: none;
-      background: transparent;
-      color: var(--text-secondary);
+    input[type="text"], select {
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    input[type="text"]:focus, select:focus { border-color: var(--accent-cyan); }
+    select option { background: #1e293b; color: #fff; }
+
+    .btn-geo {
+      padding: 8px 12px;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid var(--accent-green);
+      color: var(--accent-green);
+      border-radius: 8px;
       cursor: pointer;
       font-size: 0.82rem;
       font-weight: 600;
     }
 
-    .mode-btn.active { background: var(--accent-cyan); color: #fff; }
-
-    .geo-btn {
-      padding: 6px 12px;
-      background: rgba(16, 185, 129, 0.2);
-      border: 1px solid var(--accent-green);
-      color: var(--accent-green);
-      border-radius: 6px;
+    .btn-submit {
+      padding: 8px 24px;
+      background: var(--accent-gradient);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
       cursor: pointer;
-      font-size: 0.82rem;
+      margin-left: auto;
+      transition: all 0.2s;
+    }
+    .btn-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* メインコンテンツ（マップ＋スケジュール） */
+    .content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
-    /* リアルタイム状況変化 */
+    /* 地図 */
+    #map {
+      height: 45%;
+      width: 100%;
+      background: #090d16;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    /* リアルタイム状況変化（緊急帰宅ボタン） */
     .status-bar {
-      padding: 8px 20px;
-      background: rgba(245, 158, 11, 0.1);
+      padding: 10px 20px;
+      background: rgba(245, 158, 11, 0.12);
       border-bottom: 1px solid rgba(245, 158, 11, 0.3);
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       overflow-x: auto;
     }
-    .status-label { font-size: 0.78rem; color: var(--accent-amber); white-space: nowrap; font-weight: bold; }
+    .status-label { font-size: 0.8rem; color: var(--accent-amber); white-space: nowrap; font-weight: bold; }
     .status-chip {
-      padding: 4px 10px;
+      padding: 5px 12px;
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid var(--glass-border);
       border-radius: 12px;
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       cursor: pointer;
       white-space: nowrap;
+      transition: all 0.2s;
     }
     .status-chip:hover { background: var(--accent-amber); color: #000; font-weight: bold; }
 
-    #walk-result-box {
+    /* タイムライン（スケジュール一覧） */
+    .schedule-container {
       flex: 1;
-      padding: 16px 20px;
+      padding: 20px;
       overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      background: rgba(15, 23, 42, 0.5);
     }
 
-    /* タイピング表示 */
-    .typing-indicator { display: flex; gap: 4px; padding: 4px; }
-    .dot { width: 6px; height: 6px; background: var(--accent-cyan); border-radius: 50%; animation: blink 1.2s infinite ease-in-out both; }
-    .dot:nth-child(1) { animation-delay: -0.32s; }
-    .dot:nth-child(2) { animation-delay: -0.16s; }
-    @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+    .schedule-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .timeline {
+      position: relative;
+      padding-left: 20px;
+      border-left: 2px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .timeline-item {
+      position: relative;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 14px 18px;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -27px;
+      top: 18px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px var(--accent-cyan);
+    }
+
+    .timeline-item.return::before {
+      background: var(--accent-amber);
+      box-shadow: 0 0 10px var(--accent-amber);
+    }
+
+    .time-badge {
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.15);
+      padding: 2px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .point-name {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .point-action {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .loading-overlay {
+      display: none;
+      text-align: center;
+      padding: 40px;
+      color: var(--accent-cyan);
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
 
   <div class="app-container">
     <header>
-      <div class="header-title">
-        <div class="header-icon">⚡</div>
-        <h2>AI アシスタント</h2>
-      </div>
-      <!-- 機能切り替えタブ -->
-      <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('chat')">💬 チャット</button>
-        <button class="tab-btn" onclick="switchTab('walk')">🚶‍♂️ お散歩ルート提案</button>
-      </div>
+      <div class="header-icon">🗺️</div>
+      <h2>お散歩ルートプランナー</h2>
     </header>
 
-    <!-- タブ1: 通常AIチャット -->
-    <div id="tab-chat" class="tab-content active">
-      <div id="chat-box"></div>
-      <div class="input-container">
-        <div class="input-area">
-          <input type="text" id="chat-input" placeholder="メッセージを入力..." autocomplete="off" />
-          <button class="primary-btn" id="chat-send-btn" onclick="sendChatMessage()">送信</button>
+    <!-- フォーム設定エリア -->
+    <div class="walk-control-panel">
+      <div class="setting-row">
+        <div class="form-group">
+          <label>📍 出発地/目的の場所:</label>
+          <input type="text" id="loc-input" placeholder="例: 東京駅、代々木公園" style="width: 220px;" />
+          <button class="btn-geo" onclick="getCurrentLocation()">現在地</button>
         </div>
+
+        <div class="form-group">
+          <label>👶 子供の年齢:</label>
+          <select id="child-age">
+            <option value="0歳(ベビーカー)">0歳(ベビーカー)</option>
+            <option value="1〜2歳(よちよち)">1〜2歳(よちよち)</option>
+            <option value="3〜4歳(元気)">3〜4歳(元気)</option>
+            <option value="5歳以上">5歳以上</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>体型/体力:</label>
+          <select id="child-build">
+            <option value="標準">標準</option>
+            <option value="体力旺盛">体力旺盛</option>
+            <option value="疲れやすい">疲れやすい</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="form-group">
+          <label>😃 子供の様子:</label>
+          <select id="child-state">
+            <option value="ごきげん・元気">ごきげん・元気</option>
+            <option value="普通">普通</option>
+            <option value="少し眠そう">少し眠そう</option>
+            <option value="甘えたいモード">甘えたいモード</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>😮‍💨 親の疲労度:</label>
+          <select id="parent-fatigue">
+            <option value="元気">元気</option>
+            <option value="少し疲れている">少し疲れている</option>
+            <option value="かなり疲れた">かなり疲れた</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>⏱️ 散歩時間:</label>
+          <select id="walk-duration">
+            <option value="30分程度">30分程度</option>
+            <option value="1時間程度" selected>1時間程度</option>
+            <option value="1.5時間程度">1.5時間程度</option>
+            <option value="2時間以上">2時間以上</option>
+          </select>
+        </div>
+
+        <button class="btn-submit" id="submit-btn" onclick="generateRoute()">ルートを提案</button>
       </div>
     </div>
 
-    <!-- タブ2: お散歩提案（マップ連動） -->
-    <div id="tab-walk" class="tab-content">
-      <div class="walk-layout">
-        <!-- デフォルト表示マップ -->
-        <div id="map"></div>
+    <!-- メインコンテンツ -->
+    <div class="content-area">
+      <!-- マップ -->
+      <div id="map"></div>
 
-        <!-- 設定パネル -->
-        <div class="walk-control-panel">
-          <div class="setting-row">
-            <div class="mode-selector">
-              <button class="mode-btn active" id="btn-child" onclick="switchWalkMode('child')">👶 子ども</button>
-              <button class="mode-btn" id="btn-dog" onclick="switchWalkMode('dog')">🐕 愛犬</button>
-            </div>
-            
-            <button class="geo-btn" onclick="getCurrentLocation()">📍 現在地を取得</button>
-            <input type="text" id="loc-input" placeholder="場所を指定（例: 東京駅周辺）" style="flex: 1; min-width: 180px;" />
+      <!-- 緊急時の状態チェンジャー -->
+      <div class="status-bar">
+        <span class="status-label">🚨 途中で状態が変わったら:</span>
+        <div class="status-chip" onclick="updateEmergencyStatus('ぐずりだした（至急近くの休憩場所か最短帰宅ルート）')">😭 ぐずりだした</div>
+        <div class="status-chip" onclick="updateEmergencyStatus('眠そう・寝た（段差のない最短帰宅ルート）')">😴 眠そう・寝た</div>
+        <div class="status-chip" onclick="updateEmergencyStatus('疲れて歩かなくなった（抱っこ・休憩重視）')">😫 疲れた</div>
+      </div>
 
-            <label>親の疲労:</label>
-            <select id="parent-fatigue">
-              <option value="元気">元気</option>
-              <option value="少し疲れている">少し疲れている</option>
-              <option value="かなり疲れた（ショートコース）">かなり疲れた</option>
-            </select>
-          </div>
-
-          <!-- 子ども向けオプション -->
-          <div class="setting-row" id="child-options">
-            <label>年齢:</label>
-            <select id="child-age">
-              <option value="0歳(ベビーカー)">0歳(ベビーカー)</option>
-              <option value="1〜2歳(よちよち歩き)">1〜2歳(よちよち)</option>
-              <option value="3〜4歳(元気)">3〜4歳(元気)</option>
-              <option value="5歳以上">5歳以上</option>
-            </select>
-
-            <label>体型/体力:</label>
-            <select id="child-build">
-              <option value="標準">標準</option>
-              <option value="体力旺盛">体力旺盛</option>
-              <option value="疲れやすい">疲れやすい</option>
-            </select>
-
-            <label>目的:</label>
-            <select id="walk-purpose">
-              <option value="近場の公園で体を動かす">公園で体を動かす</option>
-              <option value="景色を見て帰るだけ">景色を見て散歩</option>
-              <option value="カフェ・店舗に立ち寄り">カフェ・店舗立ち寄り</option>
-            </select>
-
-            <button class="primary-btn" id="walk-search-btn" onclick="requestWalkRoute()" style="margin-left: auto;">ルートを提案</button>
-          </div>
-
-          <!-- 愛犬向けオプション -->
-          <div class="setting-row" id="dog-options" style="display: none;">
-            <label>犬種サイズ:</label>
-            <select id="dog-size">
-              <option value="小型犬">小型犬</option>
-              <option value="中型犬">中型犬</option>
-              <option value="大型犬">大型犬</option>
-            </select>
-
-            <label>運動量:</label>
-            <select id="dog-energy">
-              <option value="ゆったりショート">ゆったりショート</option>
-              <option value="標準">標準</option>
-              <option value="たっぷりロング">たっぷりロング</option>
-            </select>
-
-            <button class="primary-btn" onclick="requestWalkRoute()" style="margin-left: auto;">ルートを提案</button>
-          </div>
+      <!-- スケジュール（タイムライン）表示 -->
+      <div class="schedule-container">
+        <div class="schedule-title" id="schedule-header">
+          <span>お散歩スケジュール</span>
         </div>
 
-        <!-- 状態チェンジャー -->
-        <div class="status-bar">
-          <span class="status-label">🚨 散歩中の変化:</span>
-          <div class="status-chip" onclick="triggerStatusUpdate('子どもが元気に走り回り出しました！')">⚡ 元気いっぱい</div>
-          <div class="status-chip" onclick="triggerStatusUpdate('子どもが少し疲れて歩くのが遅くなってきました。')">😮‍💨 疲れてきた</div>
-          <div class="status-chip" onclick="triggerStatusUpdate('子どもがぐずり出しました！すぐ休めるルートを教えて！')">😭 ぐずりだした</div>
-          <div class="status-chip" onclick="triggerStatusUpdate('子どもが寝てしまいました！ベビーカーで段差のない最短帰宅ルートを教えて。')">😴 寝た（最短帰宅）</div>
+        <div id="loading" class="loading-overlay">最適なルートとスケジュールを計算中...</div>
+        <div class="timeline" id="timeline-box">
+          <p style="color: var(--text-secondary); text-align: center;">条件を入力して「ルートを提案」ボタンを押してください。</p>
         </div>
-
-        <!-- 結果ログエリア -->
-        <div id="walk-result-box"></div>
       </div>
     </div>
   </div>
 
   <script>
-    /* ==========================================
-       共通 ＆ タブ切り替え制御
-    ========================================== */
     let map = null;
-    let currentMarker = null;
-    let routeLine = null;
-    let currentLat = 35.6812; // デフォルト: 東京駅付近
+    let markers = [];
+    let routePolyline = null;
+    let currentLat = 35.6812; // 初期値: 東京駅
     let currentLng = 139.7671;
 
-    function switchTab(tabName) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
-      if (tabName === 'chat') {
-        document.querySelectorAll('.tab-btn')[0].classList.add('active');
-        document.getElementById('tab-chat').classList.add('active');
-      } else {
-        document.querySelectorAll('.tab-btn')[1].classList.add('active');
-        document.getElementById('tab-walk').classList.add('active');
-        
-        // タブ切り替え時にマップサイズを調整
-        setTimeout(() => {
-          if (!map) {
-            initMap();
-          } else {
-            map.invalidateSize();
-          }
-        }, 100);
-      }
-    }
-
-    /* ==========================================
-       1. チャット機能
-    ========================================== */
-    const chatHistory = [];
-    const chatBox = document.getElementById('chat-box');
-    const chatInput = document.getElementById('chat-input');
-    const chatSendBtn = document.getElementById('chat-send-btn');
-
-    function appendChatMessage(sender, text, isMarkdown = false) {
-      const div = document.createElement('div');
-      div.className = `message ${sender}`;
-      if (isMarkdown && typeof marked !== 'undefined') {
-        div.innerHTML = marked.parse(text);
-      } else {
-        div.textContent = text;
-      }
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    async function sendChatMessage() {
-      const text = chatInput.value.trim();
-      if (!text) return;
-
-      appendChatMessage('user', text);
-      chatHistory.push({ role: 'user', parts: [{ text }] });
-      chatInput.value = '';
-      chatSendBtn.disabled = true;
-
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: chatHistory })
-        });
-        const data = await res.json();
-        if (data.reply) {
-          appendChatMessage('bot', data.reply, true);
-          chatHistory.push({ role: 'model', parts: [{ text: data.reply }] });
-        } else {
-          appendChatMessage('bot', `エラー: ${data.error || '失敗しました'}`);
-        }
-      } catch (e) {
-        appendChatMessage('bot', '通信エラーが発生しました。');
-      } finally {
-        chatSendBtn.disabled = false;
-      }
-    }
-    chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChatMessage(); });
-
-    /* ==========================================
-       2. お散歩機能 ＆ マップ処理
-    ========================================== */
-    let walkMode = 'child';
-    const walkHistory = [];
-    const walkResultBox = document.getElementById('walk-result-box');
-
-    // マップの初期化
-    function initMap() {
+    // 地図の初期化
+    window.onload = () => {
       map = L.map('map').setView([currentLat, currentLng], 15);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
       }).addTo(map);
 
-      currentMarker = L.marker([currentLat, currentLng]).addTo(map)
-        .bindPopup('現在地/指定地点').openPopup();
-    }
+      // 初期の東京駅ピン
+      const initialMarker = L.marker([currentLat, currentLng]).addTo(map)
+        .bindPopup('基準地点').openPopup();
+      markers.push(initialMarker);
+    };
 
-    function switchWalkMode(mode) {
-      walkMode = mode;
-      document.getElementById('btn-child').classList.toggle('active', mode === 'child');
-      document.getElementById('btn-dog').classList.toggle('active', mode === 'dog');
-      document.getElementById('child-options').style.display = mode === 'child' ? 'flex' : 'none';
-      document.getElementById('dog-options').style.display = mode === 'dog' ? 'flex' : 'none';
-    }
-
-    // 現在地の取得
+    // 現在地取得
     function getCurrentLocation() {
       const locInput = document.getElementById('loc-input');
       if (!navigator.geolocation) {
-        alert('位置情報に対応していません。');
+        alert('位置情報サービスに対応していません。');
         return;
       }
-      locInput.value = "位置情報を取得中...";
+      locInput.value = "現在地を取得中...";
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           currentLat = pos.coords.latitude;
           currentLng = pos.coords.longitude;
-          locInput.value = `現在地 (緯度:${currentLat.toFixed(3)}, 経度:${currentLng.toFixed(3)})`;
-          
-          if (map) {
-            map.setView([currentLat, currentLng], 15);
-            currentMarker.setLatLng([currentLat, currentLng]).bindPopup('現在地').openPopup();
-          }
+          locInput.value = "現在地";
+          updateMapCenter(currentLat, currentLng, "現在地");
         },
         () => {
           locInput.value = "";
-          alert('位置情報の取得に失敗しました。手動で入力してください。');
+          alert('位置情報の取得に失敗しました。場所名を直接入力してください。');
         }
       );
     }
 
-    function appendWalkMessage(sender, text, isMarkdown = false) {
-      const div = document.createElement('div');
-      div.className = `message ${sender}`;
-      if (isMarkdown && typeof marked !== 'undefined') {
-        div.innerHTML = marked.parse(text);
-      } else {
-        div.textContent = text;
+    // 地名のジオコーディング（Nominatim APIを利用）
+    async function geocodeLocation(query) {
+      if (!query || query === "現在地") return { lat: currentLat, lng: currentLng };
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+        }
+      } catch (e) {
+        console.error("Geocoding Error", e);
       }
-      walkResultBox.appendChild(div);
-      walkResultBox.scrollTop = walkResultBox.scrollHeight;
+      return { lat: currentLat, lng: currentLng };
     }
 
-    // お散歩ルートのリクエスト
-    async function requestWalkRoute(promptOverride = null) {
-      const locationStr = document.getElementById('loc-input').value.trim() || '指定なし（周辺エリア）';
-      const userText = promptOverride || `${locationStr} からスタートするおすすめのお散歩ルートを提案してください。`;
+    function updateMapCenter(lat, lng, popupText) {
+      clearMapLayers();
+      currentLat = lat;
+      currentLng = lng;
+      map.setView([lat, lng], 15);
+      const marker = L.marker([lat, lng]).addTo(map).bindPopup(popupText).openPopup();
+      markers.push(marker);
+    }
 
-      appendWalkMessage('user', userText);
-      walkHistory.push({ role: 'user', parts: [{ text: userText }] });
+    function clearMapLayers() {
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+      if (routePolyline) {
+        map.removeLayer(routePolyline);
+        routePolyline = null;
+      }
+    }
 
+    // ルート＆スケジュール提案リクエスト
+    async function generateRoute(emergencyStatus = null) {
+      const locationName = document.getElementById('loc-input').value.trim() || '東京駅';
+      const submitBtn = document.getElementById('submit-btn');
+      const loading = document.getElementById('loading');
+      const timelineBox = document.getElementById('timeline-box');
+
+      submitBtn.disabled = true;
+      loading.style.display = 'block';
+      timelineBox.innerHTML = '';
+
+      // 1. 位置情報の確定（地名から経緯度を取得）
+      const coords = await geocodeLocation(locationName);
+      currentLat = coords.lat;
+      currentLng = coords.lng;
+
+      // 2. リクエストデータの構築
       const walkContext = {
-        mode: walkMode,
-        location: locationStr,
-        parentFatigue: document.getElementById('parent-fatigue').value,
+        location: locationName,
         childAge: document.getElementById('child-age').value,
         childBuild: document.getElementById('child-build').value,
-        purpose: document.getElementById('walk-purpose').value,
-        dogSize: document.getElementById('dog-size').value,
-        dogEnergy: document.getElementById('dog-energy').value
+        childState: emergencyStatus || document.getElementById('child-state').value,
+        parentFatigue: document.getElementById('parent-fatigue').value,
+        duration: document.getElementById('walk-duration').value,
+        isEmergency: !!emergencyStatus
       };
 
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: walkHistory, walkContext })
+          body: JSON.stringify({ walkContext })
         });
+
         const data = await res.json();
-        if (data.reply) {
-          appendWalkMessage('bot', data.reply, true);
-          walkHistory.push({ role: 'model', parts: [{ text: data.reply }] });
-          
-          // マップ上に簡易的な周回イメージルートを描画
-          drawDummyRoute();
+        loading.style.display = 'none';
+
+        if (data.plan) {
+          renderMapAndTimeline(coords, data.plan);
         } else {
-          appendWalkMessage('bot', `エラー: ${data.error || '取得失敗'}`);
+          timelineBox.innerHTML = `<p style="color: red;">エラー: ${data.error || 'ルートの作成に失敗しました'}</p>`;
         }
       } catch (e) {
-        appendWalkMessage('bot', '通信エラーが発生しました。');
+        loading.style.display = 'none';
+        timelineBox.innerHTML = '<p style="color: red;">通信エラーが発生しました。</p>';
+      } finally {
+        submitBtn.disabled = false;
       }
     }
 
-    // 状態チェンジャー発動
-    function triggerStatusUpdate(statusText) {
-      requestWalkRoute(`【状況変化】${statusText}`);
+    // 途中の状況変化（ぐずり・眠そうなど）で緊急ルート作成
+    function updateEmergencyStatus(status) {
+      generateRoute(status);
     }
 
-    // マップに散歩ルートを描画（デモ用の現在地周回ルート線）
-    function drawDummyRoute() {
-      if (!map) return;
-      if (routeLine) map.removeLayer(routeLine);
+    // マップへの描画とスケジュール出力
+    function renderMapAndTimeline(startCoords, plan) {
+      clearMapLayers();
 
-      // 現在地を中心に適当なルートポイントを生成（右→下→左→上）
-      const offset = 0.003;
-      const latlngs = [
-        [currentLat, currentLng],
-        [currentLat + offset, currentLng + offset],
-        [currentLat + offset, currentLng - offset],
-        [currentLat - offset, currentLng - offset],
-        [currentLat, currentLng]
-      ];
+      const timelineBox = document.getElementById('timeline-box');
+      timelineBox.innerHTML = '';
 
-      routeLine = L.polyline(latlngs, { color: '#06b6d4', weight: 5, opacity: 0.8, dashArray: '8, 8' }).addTo(map);
-      map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+      const latlngs = [];
+      
+      // スタート位置を追加
+      latlngs.push([startCoords.lat, startCoords.lng]);
+
+      // スケジュールポイントごとに処理
+      plan.points.forEach((point, index) => {
+        // 現在地から周辺の座標を適宜オフセット（可視化用）
+        const latOffset = (index + 1) * 0.002 * (index % 2 === 0 ? 1 : -0.8);
+        const lngOffset = (index + 1) * 0.002 * (index % 2 === 0 ? -0.8 : 1);
+        
+        // 最終ポイント（帰宅地点）はスタート位置に戻す
+        const pLat = index === plan.points.length - 1 ? startCoords.lat : startCoords.lat + latOffset;
+        const pLng = index === plan.points.length - 1 ? startCoords.lng : startCoords.lng + lngOffset;
+
+        latlngs.push([pLat, pLng]);
+
+        // ピンを立てる
+        const isReturn = index === plan.points.length - 1;
+        const marker = L.marker([pLat, pLng]).addTo(map)
+          .bindPopup(`<b>${point.time}</b><br>${point.name}`);
+        markers.push(marker);
+
+        // タイムライン描画
+        const item = document.createElement('div');
+        item.className = `timeline-item ${isReturn ? 'return' : ''}`;
+        item.innerHTML = `
+          <span class="time-badge">${point.time} (${point.duration})</span>
+          <div class="point-name">${isReturn ? '🏁 ' : '📍 '}${point.name}</div>
+          <div class="point-action">${point.action}</div>
+        `;
+        timelineBox.appendChild(item);
+      });
+
+      // ルート線を引き、マップの表示領域を自動調整
+      routePolyline = L.polyline(latlngs, {
+        color: '#06b6d4',
+        weight: 5,
+        opacity: 0.8,
+        dashArray: '6, 8'
+      }).addTo(map);
+
+      map.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
     }
-
-    // 初回初期化（チャットを表示）
-    appendChatMessage('bot', 'こんにちは！通常のAIチャットへようこそ。どのようなことでもご相談ください。');
   </script>
 </body>
 </html>
