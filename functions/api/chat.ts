@@ -2,29 +2,11 @@ interface Env {
   GEMINI_API_KEY: string;
 }
 
-interface WalkContext {
-  mode: 'child' | 'dog';
-  location: string;
-  childAge?: string;
-  childBuild?: string;
-  purpose?: string;
-  parentFatigue?: string;
-  dogSize?: string;
-  dogEnergy?: string;
-}
-
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const { request, env } = context;
-    const body = await request.json() as { contents?: any[]; walkContext?: WalkContext };
-    const { contents, walkContext } = body;
-
-    if (!contents || !Array.isArray(contents) || contents.length === 0) {
-      return new Response(JSON.stringify({ error: "会話データが空です。" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" }
-      });
-    }
+    const body = await request.json() as { walkContext?: any };
+    const { walkContext } = body;
 
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -34,65 +16,73 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
-    // お散歩モード時のみシステムプロンプトを挿入
-    let systemInstruction = "";
-    if (walkContext) {
-      if (walkContext.mode === 'child') {
-        systemInstruction = `
-あなたは子育て世帯に寄り添う親切な「お散歩アドバイザーAI」です。
-【条件】
-・出発/現在地: ${walkContext.location}
-・子どもの年齢: ${walkContext.childAge || '未指定'}
-・体型/体力傾向: ${walkContext.childBuild || '標準'}
-・目的: ${walkContext.purpose || 'お散歩'}
-・親の疲労度: ${walkContext.parentFatigue || '普通'}
-
-【回答ルール】
-1. 親の疲労度が高い場合は、フラットで短いルートを提案してください。
-2. 年齢・体格に合わせた安全な道（ベビーカーの押しやすさ、公園の遊具、日陰、休憩スポットなど）を提案してください。
-3. ぐずり・睡眠などの状態変化の通知があった場合は、最優先で最短帰宅ルートや休憩場所を案内してください。
-`;
-      } else {
-        systemInstruction = `
-あなたは「愛犬お散歩ナビゲーターAI」です。
-【条件】
-・出発/現在地: ${walkContext.location}
-・犬サイズ: ${walkContext.dogSize || '中型犬'}
-・運動量: ${walkContext.dogEnergy || '標準'}
-・飼い主の疲労度: ${walkContext.parentFatigue || '普通'}
-
-【回答ルール】
-土や草地のある歩道、日陰、水飲み場などを意識した安全なルートを提案してください。
-`;
-      }
+    if (!walkContext) {
+      return new Response(JSON.stringify({ error: "条件パラメータが指定されていません。" }), { status: 400 });
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+    // JSON形式で確実にスケジュールを生成させるためのプロンプト
+    const prompt = `
+あなたは子育て世帯専門の「お散歩ツアープランナー」です。
+以下の条件に基づいて、寄り道ポイントと行動・所要時間を順番に記したお散歩スケジュールを作成してください。
 
-    const requestBody: any = { contents };
-    if (systemInstruction) {
-      requestBody.systemInstruction = { parts: [{ text: systemInstruction }] };
+【散歩条件】
+・出発/帰宅場所: ${walkContext.location}
+・子供の年齢: ${walkContext.childAge}
+・子供の体型/体力: ${walkContext.childBuild}
+・現在の子供の様子: ${walkContext.childState}
+・親の疲労度: ${walkContext.parentFatigue}
+・予定お散歩時間: ${walkContext.duration}
+・緊急帰宅フラグ: ${walkContext.isEmergency ? 'YES (至急帰宅優先)' : 'NO'}
+
+【回答条件】
+以下のJSONフォーマットのみを出力してください。余計な解説テキストは不要です。
+
+{
+  "points": [
+    {
+      "time": "00:00 (スタート)",
+      "duration": "移動5分",
+      "name": "地点名（例: 出発 / ○○公園）",
+      "action": "ここですべき行動やアドバイス（例: ベビーカーを降りて遊具へ。水分の準備。）"
+    },
+    ...
+    {
+      "time": "00:45 (ゴール)",
+      "duration": "帰宅完了",
+      "name": "帰宅地点 (${walkContext.location})",
+      "action": "無事帰宅。手洗い・うがいと足を拭いてリラックス。"
     }
+  ]
+}
+
+※ポイント数は3〜5か所に制限し、必ず最後は出発場所（帰宅）で終わるようにしてください。
+※緊急帰宅フラグがYES、または子供がぐずり・眠そうな場合は、途中の工程をカットして最短で帰宅するルートを作成してください。
+`;
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json" // JSONで出力指定
+        }
+      })
     });
 
     const data = await geminiResponse.json() as any;
 
     if (!geminiResponse.ok) {
-      const errMsg = data?.error?.message || "Gemini APIエラー";
-      return new Response(JSON.stringify({ error: errMsg }), {
-        status: geminiResponse.status,
-        headers: { "Content-Type": "application/json" }
-      });
+      const errMsg = data?.error?.message || "Gemini APIエラーが発生しました。";
+      return new Response(JSON.stringify({ error: errMsg }), { status: geminiResponse.status });
     }
 
-    const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "応答を得られませんでした。";
+    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const parsedPlan = JSON.parse(rawText);
 
-    return new Response(JSON.stringify({ reply: replyText }), {
+    return new Response(JSON.stringify({ plan: parsedPlan }), {
       headers: { "Content-Type": "application/json" }
     });
 
