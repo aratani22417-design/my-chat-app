@@ -59,7 +59,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 ※緊急帰宅フラグがYES、または子供がぐずり・眠そうな場合は、途中の工程をカットして最短で帰宅するルートを作成してください。
 `;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
