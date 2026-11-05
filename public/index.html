@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>お散歩ルートプランナー</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
   
@@ -10,10 +10,13 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- FontAwesome (Icons) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
   <style>
     :root {
       --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f2744 100%);
-      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-bg: rgba(15, 23, 42, 0.88);
       --glass-border: rgba(255, 255, 255, 0.12);
       --card-bg: #1e293b;
       --text-primary: #f8fafc;
@@ -36,25 +39,33 @@
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      padding: 12px;
+      padding: 0;
     }
 
+    /* 全体コンテナ：スマホ画面にフィットするレスポンシブ設計 */
     .app-container {
       width: 100%;
-      max-width: 1000px;
-      height: 94vh;
-      background: rgba(15, 23, 42, 0.88);
+      max-width: 500px; /* スマホ風の幅制限 */
+      height: 100vh;
+      background: var(--glass-bg);
       backdrop-filter: blur(16px);
-      border-radius: 20px;
       border: 1px solid var(--glass-border);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
+    }
+
+    @media (min-width: 600px) {
+      .app-container {
+        height: 94vh;
+        border-radius: 20px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      }
     }
 
     header {
-      padding: 14px 20px;
+      padding: 12px 16px;
       border-bottom: 1px solid var(--glass-border);
       background: rgba(255, 255, 255, 0.02);
       display: flex;
@@ -63,198 +74,282 @@
     }
 
     .header-icon {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       background: var(--accent-gradient);
-      border-radius: 10px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.2rem;
+      font-size: 1rem;
     }
 
-    /* フォーム領域 */
+    header h2 { font-size: 1.05rem; font-weight: 600; }
+
+    /* 設定フォーム領域（スクロール可能） */
     .walk-control-panel {
-      padding: 14px 20px;
-      background: rgba(0, 0, 0, 0.25);
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.3);
       border-bottom: 1px solid var(--glass-border);
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      font-size: 0.85rem;
+      gap: 8px;
+      font-size: 0.8rem;
+      max-height: 220px;
+      overflow-y: auto;
     }
 
-    .setting-row {
+    .setting-group {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
       align-items: center;
     }
 
-    .form-group {
+    .form-item {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
+      flex: 1 1 calc(50% - 4px);
+      min-width: 140px;
     }
 
+    .form-item.full {
+      flex: 1 1 100%;
+    }
+
+    label { color: var(--text-secondary); font-size: 0.75rem; white-space: nowrap; }
+
     input[type="text"], select {
-      padding: 8px 12px;
+      width: 100%;
+      padding: 6px 10px;
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid var(--glass-border);
-      border-radius: 8px;
+      border-radius: 6px;
       color: #fff;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       outline: none;
     }
+
     input[type="text"]:focus, select:focus { border-color: var(--accent-cyan); }
     select option { background: #1e293b; color: #fff; }
 
-    .btn-geo {
-      padding: 8px 12px;
+    .btn-icon {
+      padding: 6px 10px;
       background: rgba(16, 185, 129, 0.2);
       border: 1px solid var(--accent-green);
       color: var(--accent-green);
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
-      font-size: 0.82rem;
-      font-weight: 600;
+      font-size: 0.75rem;
+      white-space: nowrap;
     }
 
     .btn-submit {
-      padding: 8px 24px;
+      width: 100%;
+      padding: 10px;
       background: var(--accent-gradient);
       color: white;
       border: none;
       border-radius: 8px;
       font-weight: 600;
+      font-size: 0.9rem;
       cursor: pointer;
-      margin-left: auto;
+      margin-top: 4px;
       transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
     }
-    .btn-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-submit:hover { opacity: 0.9; }
     .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    /* メインコンテンツ（マップ＋スケジュール） */
+    /* メインエリア */
     .content-area {
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
     }
 
-    /* 地図 */
     #map {
-      height: 45%;
+      height: 42%;
       width: 100%;
       background: #090d16;
       border-bottom: 1px solid var(--glass-border);
     }
 
-    /* リアルタイム状況変化（緊急帰宅ボタン） */
+    /* リアルタイム状態チェンジャー */
     .status-bar {
-      padding: 10px 20px;
+      padding: 8px 12px;
       background: rgba(245, 158, 11, 0.12);
       border-bottom: 1px solid rgba(245, 158, 11, 0.3);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 6px;
       overflow-x: auto;
     }
-    .status-label { font-size: 0.8rem; color: var(--accent-amber); white-space: nowrap; font-weight: bold; }
+    .status-label { font-size: 0.75rem; color: var(--accent-amber); white-space: nowrap; font-weight: bold; }
     .status-chip {
-      padding: 5px 12px;
+      padding: 4px 10px;
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid var(--glass-border);
       border-radius: 12px;
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       cursor: pointer;
       white-space: nowrap;
-      transition: all 0.2s;
     }
     .status-chip:hover { background: var(--accent-amber); color: #000; font-weight: bold; }
 
-    /* タイムライン（スケジュール一覧） */
+    /* スケジュール（タイムライン）表示 */
     .schedule-container {
       flex: 1;
-      padding: 20px;
+      padding: 14px 16px;
       overflow-y: auto;
       background: rgba(15, 23, 42, 0.5);
     }
 
-    .schedule-title {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 16px;
-      color: var(--accent-cyan);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
     .timeline {
       position: relative;
-      padding-left: 20px;
+      padding-left: 16px;
       border-left: 2px solid var(--glass-border);
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
     }
 
     .timeline-item {
       position: relative;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--glass-border);
-      border-radius: 12px;
-      padding: 14px 18px;
+      border-radius: 10px;
+      padding: 10px 14px;
     }
 
     .timeline-item::before {
       content: '';
       position: absolute;
-      left: -27px;
-      top: 18px;
-      width: 12px;
-      height: 12px;
+      left: -23px;
+      top: 14px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: var(--accent-cyan);
-      box-shadow: 0 0 10px var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
     }
 
     .timeline-item.return::before {
       background: var(--accent-amber);
-      box-shadow: 0 0 10px var(--accent-amber);
+      box-shadow: 0 0 8px var(--accent-amber);
     }
 
     .time-badge {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       font-weight: bold;
       color: var(--accent-cyan);
       background: rgba(6, 182, 212, 0.15);
-      padding: 2px 8px;
+      padding: 2px 6px;
       border-radius: 4px;
       display: inline-block;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
-    .point-name {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-
-    .point-action {
-      font-size: 0.88rem;
-      color: var(--text-secondary);
-      line-height: 1.5;
-    }
+    .point-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; }
+    .point-action { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
 
     .loading-overlay {
       display: none;
       text-align: center;
-      padding: 40px;
+      padding: 20px;
       color: var(--accent-cyan);
+      font-size: 0.85rem;
       font-weight: bold;
     }
+
+    /* ----------------------------------
+       子育て相談ロボット（フローティングチャット）
+    ---------------------------------- */
+    .bot-fab {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--accent-gradient);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      cursor: pointer;
+      z-index: 1000;
+      transition: transform 0.2s;
+    }
+    .bot-fab:hover { transform: scale(1.08); }
+
+    .chat-modal {
+      display: none;
+      position: absolute;
+      bottom: 74px;
+      right: 16px;
+      width: calc(100% - 32px);
+      max-width: 360px;
+      height: 420px;
+      background: #1e293b;
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      flex-direction: column;
+      overflow: hidden;
+      animation: popUp 0.25s ease-out;
+    }
+
+    @keyframes popUp {
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .chat-header {
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .chat-header h3 { font-size: 0.88rem; font-weight: 600; }
+    .chat-close-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1rem; }
+
+    #bot-chat-box {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 0.82rem;
+    }
+
+    .chat-msg {
+      padding: 8px 12px;
+      border-radius: 12px;
+      line-height: 1.4;
+      max-width: 85%;
+      word-break: break-word;
+    }
+    .chat-msg.user { align-self: flex-end; background: var(--accent-blue); color: #fff; }
+    .chat-msg.bot { align-self: flex-start; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--glass-border); }
+
+    .chat-input-area {
+      padding: 8px 12px;
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.9);
+    }
+    .chat-input-area input { flex: 1; padding: 6px 10px; border-radius: 6px; }
+    .chat-input-area button { padding: 6px 12px; background: var(--accent-cyan); border: none; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -265,91 +360,145 @@
       <h2>お散歩ルートプランナー</h2>
     </header>
 
-    <!-- フォーム設定エリア -->
+    <!-- 設定フォーム -->
     <div class="walk-control-panel">
-      <div class="setting-row">
-        <div class="form-group">
-          <label>📍 出発地/目的の場所:</label>
-          <input type="text" id="loc-input" placeholder="例: 東京駅、代々木公園" style="width: 220px;" />
-          <button class="btn-geo" onclick="getCurrentLocation()">現在地</button>
+      <!-- 出発地設定 -->
+      <div class="setting-group">
+        <div class="form-item full">
+          <label>📍 場所:</label>
+          <input type="text" id="loc-input" value="東京駅" placeholder="場所を入力 (例: 広島駅)" />
+          <button class="btn-icon" onclick="confirmLocation()"><i class="fa-solid fa-magnifying-glass"></i> 移動</button>
+          <button class="btn-icon" onclick="getCurrentLocation()"><i class="fa-solid fa-location-arrow"></i></button>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label>👶 子供の年齢:</label>
+      <!-- 基本項目 -->
+      <div class="setting-group">
+        <div class="form-item">
+          <label>年齢:</label>
           <select id="child-age">
             <option value="0歳(ベビーカー)">0歳(ベビーカー)</option>
             <option value="1〜2歳(よちよち)">1〜2歳(よちよち)</option>
-            <option value="3〜4歳(元気)">3〜4歳(元気)</option>
+            <option value="3〜4歳(元気)" selected>3〜4歳(元気)</option>
             <option value="5歳以上">5歳以上</option>
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-item">
           <label>体型/体力:</label>
           <select id="child-build">
-            <option value="標準">標準</option>
+            <option value="標準" selected>標準</option>
             <option value="体力旺盛">体力旺盛</option>
             <option value="疲れやすい">疲れやすい</option>
           </select>
         </div>
       </div>
 
-      <div class="setting-row">
-        <div class="form-group">
-          <label>😃 子供の様子:</label>
+      <div class="setting-group">
+        <div class="form-item">
+          <label>様子:</label>
           <select id="child-state">
-            <option value="ごきげん・元気">ごきげん・元気</option>
+            <option value="ごきげん・元気" selected>ごきげん・元気</option>
             <option value="普通">普通</option>
             <option value="少し眠そう">少し眠そう</option>
-            <option value="甘えたいモード">甘えたいモード</option>
+            <option value="甘えたい">甘えたい</option>
           </select>
         </div>
 
-        <div class="form-group">
-          <label>😮‍💨 親の疲労度:</label>
+        <div class="form-item">
+          <label>親の疲労:</label>
           <select id="parent-fatigue">
-            <option value="元気">元気</option>
+            <option value="元気" selected>元気</option>
             <option value="少し疲れている">少し疲れている</option>
             <option value="かなり疲れた">かなり疲れた</option>
           </select>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label>⏱️ 散歩時間:</label>
+      <!-- 詳細追加項目（任意） -->
+      <div class="setting-group">
+        <div class="form-item">
+          <label>移動手段:</label>
+          <select id="travel-method">
+            <option value="指定なし">指定なし</option>
+            <option value="徒歩" selected>徒歩</option>
+            <option value="ベビーカー">ベビーカー</option>
+            <option value="抱っこひも">抱っこひも</option>
+          </select>
+        </div>
+
+        <div class="form-item">
+          <label>目的・寄り道:</label>
+          <select id="visit-type">
+            <option value="指定なし">指定なし</option>
+            <option value="公園(遊具あり)">公園(遊具あり)</option>
+            <option value="室内・児童館">室内・児童館</option>
+            <option value="カフェ休憩">カフェ休憩</option>
+            <option value="自然・水辺">自然・水辺</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="form-item">
+          <label>散歩時間:</label>
           <select id="walk-duration">
             <option value="30分程度">30分程度</option>
             <option value="1時間程度" selected>1時間程度</option>
             <option value="1.5時間程度">1.5時間程度</option>
-            <option value="2時間以上">2時間以上</option>
           </select>
         </div>
 
-        <button class="btn-submit" id="submit-btn" onclick="generateRoute()">ルートを提案</button>
+        <div class="form-item">
+          <label>設備優先:</label>
+          <select id="facility-pref">
+            <option value="指定なし">指定なし</option>
+            <option value="多目的トイレ/授乳室優先">多目的トイレ・授乳室</option>
+            <option value="日陰・屋根優先">日陰・屋根優先</option>
+            <option value="段差・階段を避ける">段差・階段を避ける</option>
+          </select>
+        </div>
       </div>
+
+      <button class="btn-submit" id="submit-btn" onclick="generateRoute()">ルートを提案</button>
     </div>
 
     <!-- メインコンテンツ -->
     <div class="content-area">
-      <!-- マップ -->
       <div id="map"></div>
 
-      <!-- 緊急時の状態チェンジャー -->
+      <!-- 状況変化ボタン -->
       <div class="status-bar">
-        <span class="status-label">🚨 途中で状態が変わったら:</span>
+        <span class="status-label">🚨 変化:</span>
         <div class="status-chip" onclick="updateEmergencyStatus('ぐずりだした（至急近くの休憩場所か最短帰宅ルート）')">😭 ぐずりだした</div>
         <div class="status-chip" onclick="updateEmergencyStatus('眠そう・寝た（段差のない最短帰宅ルート）')">😴 眠そう・寝た</div>
-        <div class="status-chip" onclick="updateEmergencyStatus('疲れて歩かなくなった（抱っこ・休憩重視）')">😫 疲れた</div>
+        <div class="status-chip" onclick="updateEmergencyStatus('疲れて歩かない（抱っこ・休憩重視）')">😫 疲れた</div>
       </div>
 
-      <!-- スケジュール（タイムライン）表示 -->
+      <!-- タイムライン -->
       <div class="schedule-container">
-        <div class="schedule-title" id="schedule-header">
-          <span>お散歩スケジュール</span>
-        </div>
-
-        <div id="loading" class="loading-overlay">最適なルートとスケジュールを計算中...</div>
+        <div id="loading" class="loading-overlay">道路に沿った最適なルートを計算中...</div>
         <div class="timeline" id="timeline-box">
-          <p style="color: var(--text-secondary); text-align: center;">条件を入力して「ルートを提案」ボタンを押してください。</p>
+          <p style="color: var(--text-secondary); text-align: center; font-size: 0.8rem; padding-top: 10px;">
+            設定を確認し、「ルートを提案」ボタンを押してください。
+          </p>
+        </div>
+      </div>
+
+      <!-- 子育て相談ロボット（FAB ＆ チャットモーダル） -->
+      <div class="bot-fab" onclick="toggleChatModal()" title="子育て相談ロボ">🤖</div>
+
+      <div class="chat-modal" id="chat-modal">
+        <div class="chat-header">
+          <h3>🤖 子育て相談ロボット</h3>
+          <button class="chat-close-btn" onclick="toggleChatModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="bot-chat-box">
+          <div class="chat-msg bot">こんにちは！お散歩中のお悩みや、子育てに関する疑問など何でも聞かせてね。</div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="bot-input" placeholder="例: ぐずり対策どうすればいい？" />
+          <button onclick="sendBotMessage()">送信</button>
         </div>
       </div>
     </div>
@@ -362,7 +511,6 @@
     let currentLat = 35.6812; // 初期値: 東京駅
     let currentLng = 139.7671;
 
-    // 地図の初期化
     window.onload = () => {
       map = L.map('map').setView([currentLat, currentLng], 15);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -371,9 +519,47 @@
 
       // 初期の東京駅ピン
       const initialMarker = L.marker([currentLat, currentLng]).addTo(map)
-        .bindPopup('基準地点').openPopup();
+        .bindPopup('基準地点 (東京駅)').openPopup();
       markers.push(initialMarker);
     };
+
+    // 地名ジオコーディング
+    async function geocodeLocation(query) {
+      if (!query || query === "現在地") return { lat: currentLat, lng: currentLng };
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          return {
+            lat: parseFloat(data[0].lat),
+            lng: parseFloat(data[0].lon),
+            displayName: data[0].display_name
+          };
+        }
+      } catch (e) {
+        console.error("Geocoding Error", e);
+      }
+      return null;
+    }
+
+    // 「確定/移動」ボタンクリック時にマップだけを該当の場所に移動させる
+    async function confirmLocation() {
+      const locationName = document.getElementById('loc-input').value.trim();
+      if (!locationName) return;
+
+      const coords = await geocodeLocation(locationName);
+      if (coords) {
+        currentLat = coords.lat;
+        currentLng = coords.lng;
+        clearMapLayers();
+        map.setView([currentLat, currentLng], 15);
+        const marker = L.marker([currentLat, currentLng]).addTo(map)
+          .bindPopup(`<b>${locationName}</b>`).openPopup();
+        markers.push(marker);
+      } else {
+        alert('指定された場所が見つかりませんでした。正確な地名を入力してください。');
+      }
+    }
 
     // 現在地取得
     function getCurrentLocation() {
@@ -382,43 +568,19 @@
         alert('位置情報サービスに対応していません。');
         return;
       }
-      locInput.value = "現在地を取得中...";
+      locInput.value = "位置情報を取得中...";
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           currentLat = pos.coords.latitude;
           currentLng = pos.coords.longitude;
           locInput.value = "現在地";
-          updateMapCenter(currentLat, currentLng, "現在地");
+          confirmLocation();
         },
         () => {
           locInput.value = "";
-          alert('位置情報の取得に失敗しました。場所名を直接入力してください。');
+          alert('位置情報の取得に失敗しました。');
         }
       );
-    }
-
-    // 地名のジオコーディング（Nominatim APIを利用）
-    async function geocodeLocation(query) {
-      if (!query || query === "現在地") return { lat: currentLat, lng: currentLng };
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        if (data && data.length > 0) {
-          return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-        }
-      } catch (e) {
-        console.error("Geocoding Error", e);
-      }
-      return { lat: currentLat, lng: currentLng };
-    }
-
-    function updateMapCenter(lat, lng, popupText) {
-      clearMapLayers();
-      currentLat = lat;
-      currentLng = lng;
-      map.setView([lat, lng], 15);
-      const marker = L.marker([lat, lng]).addTo(map).bindPopup(popupText).openPopup();
-      markers.push(marker);
     }
 
     function clearMapLayers() {
@@ -430,7 +592,26 @@
       }
     }
 
-    // ルート＆スケジュール提案リクエスト
+    // OSRM (Open Source Routing Machine) を使った道路に沿ったルート取得
+    async function fetchRoadRoute(waypoints) {
+      // waypoints: [[lat, lng], [lat, lng], ...]
+      const coordsStr = waypoints.map(p => `${p[1]},${p[0]}`).join(';');
+      const url = `https://router.project-osrm.org/route/v1/foot/${coordsStr}?overview=full&geometries=geojson`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.code === 'Ok' && data.routes.length > 0) {
+          // GeoJSONの coordinates は [lng, lat] なので Leaflet 用の [lat, lng] に変換
+          return data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+        }
+      } catch (e) {
+        console.error("OSRM Routing Error", e);
+      }
+      return waypoints; // フォールバックは直線
+    }
+
+    // ルート提案メインロジック
     async function generateRoute(emergencyStatus = null) {
       const locationName = document.getElementById('loc-input').value.trim() || '東京駅';
       const submitBtn = document.getElementById('submit-btn');
@@ -441,12 +622,14 @@
       loading.style.display = 'block';
       timelineBox.innerHTML = '';
 
-      // 1. 位置情報の確定（地名から経緯度を取得）
+      // 1. 位置確定
       const coords = await geocodeLocation(locationName);
-      currentLat = coords.lat;
-      currentLng = coords.lng;
+      if (coords) {
+        currentLat = coords.lat;
+        currentLng = coords.lng;
+      }
 
-      // 2. リクエストデータの構築
+      // 2. 設定の収集（未設定項目も考慮）
       const walkContext = {
         location: locationName,
         childAge: document.getElementById('child-age').value,
@@ -454,6 +637,9 @@
         childState: emergencyStatus || document.getElementById('child-state').value,
         parentFatigue: document.getElementById('parent-fatigue').value,
         duration: document.getElementById('walk-duration').value,
+        travelMethod: document.getElementById('travel-method').value,
+        visitType: document.getElementById('visit-type').value,
+        facilityPref: document.getElementById('facility-pref').value,
         isEmergency: !!emergencyStatus
       };
 
@@ -468,7 +654,7 @@
         loading.style.display = 'none';
 
         if (data.plan) {
-          renderMapAndTimeline(coords, data.plan);
+          await renderMapAndTimeline(coords || { lat: currentLat, lng: currentLng }, data.plan);
         } else {
           timelineBox.innerHTML = `<p style="color: red;">エラー: ${data.error || 'ルートの作成に失敗しました'}</p>`;
         }
@@ -480,42 +666,43 @@
       }
     }
 
-    // 途中の状況変化（ぐずり・眠そうなど）で緊急ルート作成
     function updateEmergencyStatus(status) {
       generateRoute(status);
     }
 
-    // マップへの描画とスケジュール出力
-    function renderMapAndTimeline(startCoords, plan) {
+    // マップへの道路追従描画とスケジュール表示
+    async function renderMapAndTimeline(startCoords, plan) {
       clearMapLayers();
-
       const timelineBox = document.getElementById('timeline-box');
       timelineBox.innerHTML = '';
 
-      const latlngs = [];
-      
-      // スタート位置を追加
-      latlngs.push([startCoords.lat, startCoords.lng]);
+      const waypoints = [];
+      waypoints.push([startCoords.lat, startCoords.lng]);
 
-      // スケジュールポイントごとに処理
+      // 経由地のダミー座標生成（実際のアプリではジオコーディングやPOI検索と連動可）
       plan.points.forEach((point, index) => {
-        // 現在地から周辺の座標を適宜オフセット（可視化用）
-        const latOffset = (index + 1) * 0.002 * (index % 2 === 0 ? 1 : -0.8);
-        const lngOffset = (index + 1) * 0.002 * (index % 2 === 0 ? -0.8 : 1);
-        
-        // 最終ポイント（帰宅地点）はスタート位置に戻す
-        const pLat = index === plan.points.length - 1 ? startCoords.lat : startCoords.lat + latOffset;
-        const pLng = index === plan.points.length - 1 ? startCoords.lng : startCoords.lng + lngOffset;
-
-        latlngs.push([pLat, pLng]);
-
-        // ピンを立てる
         const isReturn = index === plan.points.length - 1;
+        let pLat, pLng;
+
+        if (isReturn) {
+          pLat = startCoords.lat;
+          pLng = startCoords.lng;
+        } else {
+          // 周辺に散らすダミー座標計算
+          const angle = (index + 1) * (Math.PI / 2);
+          const dist = 0.0025 + (index * 0.001);
+          pLat = startCoords.lat + Math.sin(angle) * dist;
+          pLng = startCoords.lng + Math.cos(angle) * dist;
+        }
+
+        waypoints.push([pLat, pLng]);
+
+        // ピン表示
         const marker = L.marker([pLat, pLng]).addTo(map)
           .bindPopup(`<b>${point.time}</b><br>${point.name}`);
         markers.push(marker);
 
-        // タイムライン描画
+        // タイムライン構築
         const item = document.createElement('div');
         item.className = `timeline-item ${isReturn ? 'return' : ''}`;
         item.innerHTML = `
@@ -526,16 +713,77 @@
         timelineBox.appendChild(item);
       });
 
-      // ルート線を引き、マップの表示領域を自動調整
-      routePolyline = L.polyline(latlngs, {
+      // 道路に沿ったラインを OSRM API で取得して描画
+      const roadPath = await fetchRoadRoute(waypoints);
+
+      routePolyline = L.polyline(roadPath, {
         color: '#06b6d4',
-        weight: 5,
-        opacity: 0.8,
-        dashArray: '6, 8'
+        weight: 6,
+        opacity: 0.85
       }).addTo(map);
 
-      map.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
+      map.fitBounds(routePolyline.getBounds(), { padding: [30, 30] });
     }
+
+    /* ==========================================
+       子育て相談ロボット（フローティングチャット）制御
+    ========================================== */
+    const botHistory = [];
+
+    function toggleChatModal() {
+      const modal = document.getElementById('chat-modal');
+      modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+    }
+
+    async function sendBotMessage() {
+      const input = document.getElementById('bot-input');
+      const box = document.getElementById('bot-chat-box');
+      const text = input.value.trim();
+      if (!text) return;
+
+      // ユーザー発言描画
+      const uMsg = document.createElement('div');
+      uMsg.className = 'chat-msg user';
+      uMsg.textContent = text;
+      box.appendChild(uMsg);
+
+      botHistory.push({ role: 'user', parts: [{ text }] });
+      input.value = '';
+      box.scrollTop = box.scrollHeight;
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: botHistory,
+            botConsultMode: true // 相談ロボットモードであることをバックエンドへ通知
+          })
+        });
+
+        const data = await res.json();
+        const bMsg = document.createElement('div');
+        bMsg.className = 'chat-msg bot';
+
+        if (data.reply) {
+          bMsg.textContent = data.reply;
+          botHistory.push({ role: 'model', parts: [{ text: data.reply }] });
+        } else {
+          bMsg.textContent = "ごめんなさい、うまく答えられませんでした。";
+        }
+        box.appendChild(bMsg);
+        box.scrollTop = box.scrollHeight;
+      } catch (e) {
+        const bMsg = document.createElement('div');
+        bMsg.className = 'chat-msg bot';
+        bMsg.textContent = "通信エラーが発生しました。";
+        box.appendChild(bMsg);
+      }
+    }
+
+    document.getElementById('bot-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendBotMessage();
+    });
   </script>
 </body>
 </html>
